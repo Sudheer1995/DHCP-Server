@@ -11,20 +11,21 @@ class dhcpServer:
 		self.socket.bind(self.hostname, self.port)
 		self.socket.listen(5)
 
-	def dhcpDiscover():
+	def dhcpDiscover(self):
 		''' receive the request from client for connection '''
 
-	def dhcpOffer():
+	def dhcpOffer(self):
 		''' process the request from client and assign 
-		a IP address from the pool of addresses '''
+			a IP address from the pool of addresses '''
 
-	def dhcpRequest():
+	def dhcpRequest(self):
 		''' receive the IP addresses sent by dhcpOffer() from 
-		client to verify proper addresses is received '''
+			client to verify proper addresses is received '''
 
-	def dhcpAck():
+	def dhcpAck(self):
 		''' send an acknowledgement to client if an dhcpRequest() 
-		verification is passed otherwise send an not an acknowledgement '''
+			verification is passed otherwise send an not an acknowledgement '''
 
 if __name__ == "__main__":
+	
 	server = dhcpServer()
