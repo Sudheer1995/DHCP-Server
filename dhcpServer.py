@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import math
 import socket
 import operator
 from thread import *
@@ -14,10 +15,15 @@ class dhcpServer:
 		self.socket.listen(1000)
 		self.labs = {}
 		self.macs = {}
+		# information to be sent back
 		self.Ips = {}
+		self.Subnet = {}
+		self.netAddress = {}
+		self.broadAddress = {}
+		self.DNSGateway  = {}
 		self.setData()
-		
-
+		self.allocateIpsToLabs()
+	
 	def setData(self):
 		
 		with open('subnets.conf','r') as subnet_file:
@@ -39,27 +45,49 @@ class dhcpServer:
 					self.macs[macDetails[0]] = macDetails[1]
 				line_number += 1
 
-		self.allocateIpsToLabs()
-
 	def allocateIpsToLabs(self):
+
 		labs = sorted(self.labs.items(), key=operator.itemgetter(0))
+		
 		currentIp = self.startIp
 
 		for lab in labs:
 			self.Ips[lab[0]] = []
-			for i in range(0, lab[1]):
-				self.Ips[lab[0]].append([currentIp,0])
-				currentIpParts = currentIp.split('.')
-				currentIpParts = [int(i) for i in currentIpParts]
-				for j in range(3, -1, -1):
-					currentIpParts[j] += 1
-					if currentIpParts[j] <= 255:
-						break
-					else:
-						currentIpParts[j] = 0
-				currentIp = '.'.join(str(part) for part in currentIpParts)
-		
+			
+			# Subnet mask
+			hosts = int(math.ceil(math.log(lab[1], 2)))
+			bits = 32 - hosts
+			self.Subnet[lab[0]] = bits
+			
+			for i in range(0, 2**hosts):
+				if i == 1:
+					# Network Address
+					self.Ips[lab[0]].append([currentIp, 1])
+				else:
+					# Host Address
+					self.Ips[lab[0]].append([currentIp, 0])
+					currentIpParts = currentIp.split('.')
+					currentIpParts = [int(i) for i in currentIpParts]
+					for j in range(3, -1, -1):
+						currentIpParts[j] += 1
+						if currentIpParts[j] <= 255:
+							break
+						else:
+							currentIpParts[j] = 0
+					currentIp = '.'.join(str(part) for part in currentIpParts)
 
+			# Network Address
+			networkAddress = self.Ips[lab[0]]
+			self.netAddress[lab[0]] = networkAddress[0][0]
+		
+			# Broadcast Address
+			BroadCast = self.Ips[lab[0]]
+			self.broadAddress[lab[0]] = BroadCast[len(BroadCast)-1][0]
+		
+			# Same DNS, Gateway Address
+			DNSGateWay = self.Ips[lab[0]]
+			self.DNSGateway[lab[0]] = DNSGateWay[int(len(DNSGateWay)/2)][0]
+ 
 	def dhcpDiscover(self, conn):
 		''' receive the request from client for connection '''
 		mac_address = conn.recv(17)
@@ -70,13 +98,33 @@ class dhcpServer:
 				i += 1
 
 			ipToAssign = self.Ips[lab][i][0]
-			print self.Ips[lab][i]
+			subnet = self.Subnet[lab]
+			ipToAssign = '/'.join([str(ipToAssign), str(subnet)])
 		self.dhcpOffer(ipToAssign, lab, conn)
-
 
 	def dhcpOffer(self, ip, lab, conn):
 		''' send the ipAddress assigned to the client '''
-		conn.send(ip)
+		# Send Ip Address
+		Ack = False
+		while not Ack:
+			conn.send(ip)
+			Ack = bool(conn.recv(10))
+		# Send Network Address
+		Ack = False
+		while not Ack:
+			conn.send(str(self.netAddress[lab]))
+			Ack = bool(conn.recv(10))
+		# Send broadAddress
+		Ack = False
+		while not Ack:	
+			conn.send(str(self.broadAddress[lab]))
+			Ack = bool(conn.recv(10))
+		# Send DNS & Gateway Address
+		Ack = False
+		while not Ack:
+			conn.send(str(self.DNSGateway[lab]))
+			Ack = bool(conn.recv(10))
+
 		self.dhcpRequest(ip, lab, conn)
 
 	def dhcpRequest(self, ip, lab, conn):
@@ -98,7 +146,6 @@ class dhcpServer:
 			for i in range(0, len(self.Ips[lab])):
 				if self.Ips[lab][i][0] == ip:
 					break
-			print self.Ips[lab][i]
 			self.Ips[lab][i][1] = 1
 
 		else:
