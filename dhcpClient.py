@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import time
 import socket
 
 class dhcpClient:
@@ -22,25 +23,25 @@ class dhcpClient:
 		# recieve Ip Address	
 		assignedIp = ''	
 		while not assignedIp:
-			assignedIp = self.clientSocket.recv(32)
+			assignedIp = self.clientSocket.recv(100)
 			self.clientSocket.send(str(True))
 		self.ip =  assignedIp
 		# recieve Network Address
 		assignedNetworkAddress = ''
 		while not assignedNetworkAddress:
-			assignedNetworkAddress = self.clientSocket.recv(32)
+			assignedNetworkAddress = self.clientSocket.recv(100)
 			self.clientSocket.send(str(True))
 		self.networkAddress = assignedNetworkAddress
 		# recieve BroadCast Address
 		assignedBroadCastAddress = ''
 		while not assignedBroadCastAddress:
-			assignedBroadCastAddress = self.clientSocket.recv(32)
+			assignedBroadCastAddress = self.clientSocket.recv(100)
 			self.clientSocket.send(str(True))
 		self.broadcastAddress = assignedBroadCastAddress
 		# recieve DNS & Gateway Address
 		assignedDNSGateway = ''
 		while not assignedDNSGateway:
-			assignedDNSGateway = self.clientSocket.recv(32)
+			assignedDNSGateway = self.clientSocket.recv(100)
 			self.clientSocket.send(str(True))
 		self.DNS = assignedDNSGateway
 		self.gateWay = assignedDNSGateway
@@ -56,7 +57,17 @@ class dhcpClient:
 		''' receive the acknowledgment sent by dhcp Server '''
 		ack = self.clientSocket.recv(4)
 		if ack:
-			self.ip = ip
+			print self.ip
+			print self.networkAddress
+			print self.broadcastAddress
+			print self.DNS
+			print self.gateWay
+			if "Cannot" in str(self.ip): 
+				print "cannot connect to this Network"
+			else:
+				leaseTime = int(self.clientSocket.recv(10))
+				time.sleep(leaseTime)
+				self.clientSocket.send(str(True))
 		else:
 			self.clientDiscover()
 
@@ -66,8 +77,3 @@ if __name__ == "__main__":
 	mac = str(raw_input())
 	client = dhcpClient(mac)
 	client.clientDiscover()
-	print client.ip
-	print client.networkAddress
-	print client.broadcastAddress
-	print client.DNS
-	print client.gateWay
