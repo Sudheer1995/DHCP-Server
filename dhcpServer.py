@@ -9,11 +9,11 @@ class dhcpServer:
 	def __init__(self):
 		''' initialize the port and open a new socket for connection '''
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.port = 6000
+		self.port = 6001
 		self.hostname = socket.gethostname()
 		self.socket.bind((self.hostname, self.port))
 		self.socket.listen(1000)
-		self.leaseTime = 5
+		self.leaseTime = 165
 		self.labs = {}
 		self.macs = {}
 		# information to be sent back
@@ -146,7 +146,7 @@ class dhcpServer:
 	
 	def dhcpDiscover(self, conn):
 		''' receive the request from client for connection '''
-		mac_address = conn.recv(17)
+		mac_address = conn.recv(50)
 		# allot lab based on the MAC Address if not allocate a new subnet
 		try:
 			lab = self.macs[mac_address]
@@ -157,13 +157,21 @@ class dhcpServer:
 			ipToAssign = self.Ips[lab][0][0]
 		else:
 			i = 0
-			while i < len(self.Ips[lab]) and self.Ips[lab][i][1] != 0:
+			while i < len(self.Ips[lab]) and self.Ips[lab][i][1] == 1:
 				i += 1
+			print "fdyhrtgh", i
 			if i >= len(self.Ips[lab]):
-				# handle more users if a subnet is fully occupied 
+				fullStatus = 1
 				print "subnet is full"
-				
+				conn.send(str(fullStatus))
+				return self.dhcpDiscover(conn)
+			else:
+				fullStatus = 0
+				conn.send(str(fullStatus))
+			
+
 			ipToAssign = self.Ips[lab][i][0]
+			self.Ips[lab][i][1] = 1
 			subnet = self.Subnet[lab]
 			ipToAssign = '/'.join([str(ipToAssign), str(subnet)])
 		# offer assigned Ip to the requested client
@@ -172,25 +180,25 @@ class dhcpServer:
 	def dhcpOffer(self, ip, lab, conn):
 		''' send the ipAddress assigned to the client '''
 		# Send Ip Address
-		Ack = False
+		Ack = 0
 		while not Ack:
 			conn.send(ip)
-			Ack = bool(conn.recv(10))
+			Ack = int(conn.recv(1))
 		# Send Network Address
-		Ack = False
+		Ack = 0
 		while not Ack:
 			conn.send(str(self.netAddress[lab]))
-			Ack = bool(conn.recv(10))
+			Ack = int(conn.recv(1))
 		# Send broadAddress
-		Ack = False
+		Ack = 0
 		while not Ack:	
 			conn.send(str(self.broadAddress[lab]))
-			Ack = bool(conn.recv(10))
+			Ack = int(conn.recv(1))
 		# Send DNS & Gateway Address
-		Ack = False
+		Ack = 0
 		while not Ack:
 			conn.send(str(self.DNSGateway[lab]))
-			Ack = bool(conn.recv(10))
+			Ack = int(conn.recv(10))
 
 		self.dhcpRequest(ip, lab, conn)
 
@@ -198,7 +206,6 @@ class dhcpServer:
 		''' receive the IP addresses sent by dhcpOffer() from 
 			client to verify proper addresses is received '''
 		assignedIp = conn.recv(100)
-
 		if assignedIp == ip:
 			self.dhcpAck(1, lab, ip, conn)
 
@@ -213,18 +220,22 @@ class dhcpServer:
 			if "Cannot" in str(ip):
 				print "cannot allocate Ip to this client"
 			else:
+				ip = ip.split('/')
 				for i in range(0, len(self.Ips[lab])):
-					if self.Ips[lab][i][0] == ip:
+					if self.Ips[lab][i][0] == ip[0]:
 						break
-				self.Ips[lab][i][1] = 1
+				
 				print "serving " + str(lab) + " " + str(self.Ips[lab][i][0]) + " !"
 				conn.send(str(self.leaseTime))
-				timeout = conn.recv(10)
+				print self.Ips[lab][i]
+				timeout = int(conn.recv(10))
 				if timeout:
+					print "sdfdss"
 					self.Ips[lab][i][1] = 0
 					print str(lab) + " " + str(self.Ips[lab][i][0]) + " connection closed !"
 		else:
 			conn.send('NACK')
+			self.Ips[lab][i][1] = 0
 			self.dhcpDiscover(conn)
 
 
