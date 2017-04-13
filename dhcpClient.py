@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import sys
 import time
 import socket
 
@@ -74,6 +75,11 @@ class dhcpClient:
 
 if __name__ == "__main__":
 	
-	mac = str(raw_input())
-	client = dhcpClient(mac)
-	client.clientDiscover()
+	if len(sys.argv) == 3:
+		if sys.argv[0] == "dhcpClient.py" and sys.argv[1] == "-m":
+			client = dhcpClient(sys.argv[2])
+			client.clientDiscover()
+		else:
+			print "Give proper number of argument ( eg: ./client.py -m MAC-ADDRESS )"
+	else:
+		print "Give proper number of argument ( eg: ./client.py -m MAC-ADDRESS )"

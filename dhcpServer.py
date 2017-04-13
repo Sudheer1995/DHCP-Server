@@ -157,9 +157,12 @@ class dhcpServer:
 			ipToAssign = self.Ips[lab][0][0]
 		else:
 			i = 0
-			while self.Ips[lab][i][1] != 0:
+			while i < len(self.Ips[lab]) and self.Ips[lab][i][1] != 0:
 				i += 1
-
+			if i >= len(self.Ips[lab]):
+				# handle more users if a subnet is fully occupied 
+				print "subnet is full"
+				
 			ipToAssign = self.Ips[lab][i][0]
 			subnet = self.Subnet[lab]
 			ipToAssign = '/'.join([str(ipToAssign), str(subnet)])
